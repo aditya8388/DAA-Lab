@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+struct Edge {
+    int src, dest, weight;
+    int index; 
+};
+
+struct Subset {
+    int parent;
+    int rank;
+};
+
+int find(struct Subset subsets[], int i) {
+    if (subsets[i].parent != i)
+        subsets[i].parent = find(subsets, subsets[i].parent);
+    return subsets[i].parent;
+}
+
+void unionSets(struct Subset subsets[], int x, int y) {
+    int rootX = find(subsets, x);
+    int rootY = find(subsets, y);
+
+    if (rootX != rootY) {
+        if (subsets[rootX].rank < subsets[rootY].rank)
+            subsets[rootX].parent = rootY;
+        else if (subsets[rootX].rank > subsets[rootY].rank)
+            subsets[rootY].parent = rootX;
+        else {
+            subsets[rootY].parent = rootX;
+            subsets[rootX].rank++;
+        }
+    }
+}
+
+int compareEdges(const void *a, const void *b) {
+    struct Edge *edgeA = (struct Edge *)a;
+    struct Edge *edgeB = (struct Edge *)b;
+    
+    if (edgeA->weight != edgeB->weight) {
+        return edgeA->weight - edgeB->weight;
+    }
+    return edgeA->index - edgeB->index;
+}
+
+void kruskalMST(int **cost, int V) {
+    struct Edge *edges = (struct Edge *)malloc(V * V * sizeof(struct Edge));
+    int edgeCount = 0;
+    int globalIndex = 0;
+
+    for (int i = 0; i < V; i++) {
+        for (int j = i + 1; j < V; j++) {
+            if (cost[i][j] != 9999) {
+                edges[edgeCount].src = i;
+                edges[edgeCount].dest = j;
+                edges[edgeCount].weight = cost[i][j];
+                edges[edgeCount].index = globalIndex++;
+                edgeCount++;
+            }
+        }
+    }
+
+    qsort(edges, edgeCount, sizeof(struct Edge), compareEdges);
+
+    struct Subset *subsets = (struct Subset *)malloc(V * sizeof(struct Subset));
+    for (int v = 0; v < V; ++v) {
+        subsets[v].parent = v;
+        subsets[v].rank = 0;
+    }
+
+    int edgesAdded = 0;
+    int resultIndex = 0;
+    int totalCost = 0;
+
+    while (edgesAdded < V - 1 && resultIndex < edgeCount) {
+        struct Edge nextEdge = edges[resultIndex++];
+        int rootSrc = find(subsets, nextEdge.src);
+        int rootDest = find(subsets, nextEdge.dest);
+
+        if (rootSrc != rootDest) {
+            printf("Edge %d:(%d, %d) cost:%d\n", edgesAdded, nextEdge.src, nextEdge.dest, nextEdge.weight);
+            unionSets(subsets, rootSrc, rootDest);
+            totalCost += nextEdge.weight;
+            edgesAdded++;
+        }
+    }
+
+    printf("Minimum cost= %d\n", totalCost);
+
+    free(edges);
+    free(subsets);
+}
+
+int main() {
+    int V;
+    printf("No of vertices: ");
+    scanf("%d", &V);
+
+    int **cost = (int **)malloc(V * sizeof(int *));
+    for (int i = 0; i < V; i++)
+        cost[i] = (int *)malloc(V * sizeof(int));
+
+    printf("Adjacency matrix:\n");
+    for (int i = 0; i < V; i++)
+        for (int j = 0; j < V; j++)
+            scanf("%d", &cost[i][j]);
+
+    kruskalMST(cost, V);
+
+    for (int i = 0; i < V; i++)
+        free(cost[i]);
+    free(cost);
+
+    return 0;
+}
